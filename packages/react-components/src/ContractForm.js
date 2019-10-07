@@ -24,27 +24,41 @@ class ContractForm extends Component {
 
     this.contracts = context.drizzle.contracts;
     this.utils = context.drizzle.web3.utils;
+    const { inputs, inputsState } = this.extractInputs();
 
+    this.inputs = inputs;
+    this.state = inputsState;
+  }
+
+  extractInputs() {
     // Get the contract ABI
     const abi = this.contracts[this.props.contract].abi;
 
-    this.inputs = [];
-    var initialState = {};
+    let inputs = [];
+    let inputsState = {};
 
     // Iterate over abi for correct function.
-    for (var i = 0; i < abi.length; i++) {
+    for (let i = 0; i < abi.length; i++) {
       if (abi[i].name === this.props.method) {
-        this.inputs = abi[i].inputs;
+        inputs = abi[i].inputs;
 
-        for (var j = 0; j < this.inputs.length; j++) {
-          initialState[this.inputs[j].name] = "";
+        for (let j = 0; j < inputs.length; j++) {
+          inputsState[inputs[j].name] = "";
         }
 
         break;
       }
     }
 
-    this.state = initialState;
+    return { inputs, inputsState };
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.method !== this.props.method) {
+      const { inputs, inputsState } = this.extractInputs();
+      this.inputs = inputs;
+      this.setState(inputsState);
+    }
   }
 
   handleSubmit(event) {
