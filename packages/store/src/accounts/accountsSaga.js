@@ -4,6 +4,16 @@ import { getAccountBalances } from '../accountBalances/accountBalancesSaga'
 import * as AccountsActions from './constants'
 
 /*
+  * Get current account
+*/
+export function * getCurrentAccount( ) {
+  return window.ethereum.request({
+    "method": "eth_requestAccounts",
+    "params": [],
+  })
+}
+
+/*
  * Fetch Accounts List
  */
 
@@ -11,13 +21,14 @@ export function * getAccounts (action) {
   const web3 = action.web3
 
   try {
-    const accounts = yield call(web3.eth.getAccounts)
+    const accounts = yield call([web3.eth, 'getAccounts'])
 
     if (!accounts) {
       throw 'No accounts found!'
     }
 
     yield put({ type: AccountsActions.ACCOUNTS_FETCHED, accounts })
+    return accounts
   } catch (error) {
     yield put({ type: AccountsActions.ACCOUNTS_FAILED, error })
     console.error('Error fetching accounts:')
@@ -45,7 +56,7 @@ function * createAccountsPollChannel ({ interval, web3 }) {
   })
 }
 
-function * callCreateAccountsPollChannel ({ interval, web3 }) {
+function * callCreateAccountsPollChannel ({ interval, web3, accounts }) {
   const accountsChannel = yield call(createAccountsPollChannel, {
     interval,
     web3
@@ -53,21 +64,21 @@ function * callCreateAccountsPollChannel ({ interval, web3 }) {
 
   try {
     while (true) {
-      var event = yield take(accountsChannel)
+      let event = yield take(accountsChannel)
 
       if (event.type === AccountsActions.SYNCING_ACCOUNTS) {
         yield call(getAccounts, { web3: event.persistedWeb3 })
         yield call(getAccountBalances, { web3: event.persistedWeb3 })
       }
 
-      yield put(event)
+      yield put({ ...event, accounts })
     }
   } finally {
     accountsChannel.close()
   }
 }
 
-function * accountsSaga () {
+function *accountsSaga () {
   yield takeLatest(AccountsActions.ACCOUNTS_FETCHING, getAccounts)
   yield takeLatest(AccountsActions.ACCOUNTS_POLLING, callCreateAccountsPollChannel)
 }

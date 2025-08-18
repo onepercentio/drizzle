@@ -1,7 +1,8 @@
-import * as DrizzleActions from './constants'
+  import * as DrizzleActions from './constants'
 
 const initialState = {
-  initialized: false
+  initialized: false,
+  drizzle: null
 }
 
 const drizzleStatusReducer = (state = initialState, action) => {
@@ -12,7 +13,15 @@ const drizzleStatusReducer = (state = initialState, action) => {
   if (action.type === DrizzleActions.DRIZZLE_INITIALIZED) {
     return {
       ...state,
-      initialized: true
+      initialized: true,
+      drizzle: action.drizzle
+    }
+  }
+
+  if (action.type === DrizzleActions.DRIZZLE_INITIALIZING) {
+    return {
+      ...state,
+      drizzle: action.drizzle
     }
   }
   return state

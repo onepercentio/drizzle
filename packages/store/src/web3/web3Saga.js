@@ -1,13 +1,15 @@
-import { call, put } from 'redux-saga/effects'
+import { call, put, takeLatest } from 'redux-saga/effects'
 import * as Action from './constants'
+import * as AccountsActions from '../accounts/constants'
+import { getCurrentAccount } from '../accounts/accountsSaga'
 
-var Web3 = require('web3')
+import { Web3 } from 'web3'
 
 /*
  * Initialization
  */
 
-export function * initializeWeb3 (options) {
+export function* initializeWeb3 (options) {
   try {
     let web3 = {}
 
@@ -16,34 +18,28 @@ export function * initializeWeb3 (options) {
       return options.customProvider
     }
 
-    if (window.ethereum) {
+    if (typeof window.ethereum !== 'undefined') {
       const { ethereum } = window
       web3 = new Web3(ethereum)
       try {
         // ethereum.enable() will return the selected account
         // unless user opts out and then it will return undefined
-        const selectedAccount = yield call([ethereum, 'enable'])
+        const accounts = yield call(ethereum.request, { method: 'eth_requestAccounts' })
 
-        yield put({ type: Action.WEB3_INITIALIZED })
+        yield put({ type: Action.WEB3_INITIALIZED, web3 })
+        yield put({ type: AccountsActions.ACCOUNTS_FETCHED, accounts })
 
-        if (!selectedAccount) {
+        if (!accounts || !accounts.length) {
           yield put({ type: Action.WEB3_USER_DENIED })
           return
         }
         return web3
       } catch (error) {
         console.error(error)
-        yield put({ type: Action.WEB3_FAILED })
+        yield put({ type: Action.WEB3_FAILED, error })
         return
       }
-    } else if (typeof window.web3 !== 'undefined') {
-      // Checking if Web3 has been injected by the browser (Mist/MetaMask)
-      // Use Mist/MetaMask's provider.
-      web3 = new Web3(window.web3.currentProvider)
-      yield put({ type: Action.WEB3_INITIALIZED })
-
-      return web3
-    } else if (options.fallback) {
+    }  else if (options.fallback) {
       // Attempt fallback if no web3 injection.
       switch (options.fallback.type) {
         case 'ws':
@@ -63,23 +59,23 @@ export function * initializeWeb3 (options) {
       throw new Error('Cannot find injected web3 or valid fallback.')
     }
   } catch (error) {
-    yield put({ type: Action.WEB3_FAILED, error })
-    console.error('Error intializing web3:')
     console.error(error)
+    yield put({ type: Action.WEB3_FAILED, error })
   }
 }
 
 /*
  * Network ID
  */
-
-export function * getNetworkId ({ web3 }) {
+export function* getNetworkId ({ web3 }) {
   try {
-    const networkId = yield call(web3.eth.net.getId)
+    if (!web3 || !web3.eth) {
+      throw new Error('web3.eth is not available')
+    }
+    const networkId = yield call([web3.eth, 'getChainId'])
+    yield put({ type: Action.NETWORK_ID_FETCHED, networkId: networkId.toString() })
 
-    yield put({ type: Action.NETWORK_ID_FETCHED, networkId })
-
-    return networkId
+    return networkId.toString()
   } catch (error) {
     yield put({ type: Action.NETWORK_ID_FAILED, error })
 

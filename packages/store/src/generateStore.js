@@ -4,7 +4,8 @@ import createSagaMiddleware from 'redux-saga'
 import drizzleSagas from './rootSaga'
 import drizzleReducers from './reducer'
 import { generateContractsInitialState } from './contractStateUtils'
-import drizzleMW from './drizzle-middleware'
+import drizzleMW, { drizzleMiddleware } from './drizzle-middleware'
+import { configureStore } from '@reduxjs/toolkit'
 
 const composeSagas = sagas =>
   function * () {
@@ -30,7 +31,6 @@ export function generateStore ({
   appSagas = [],
   appMiddlewares = [],
   disableReduxDevTools = false,
-  ...options
 }) {
   // Note: Preserve backwards compatibility for passing options to
   // `generateStore`.  in drizzle v1.3.3 and prior of generate had a signature
@@ -50,20 +50,31 @@ export function generateStore ({
     ? global.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose
     : compose
 
-  let initialContractsState = {
+  const initialContractsState = {
     contracts: generateContractsInitialState(drizzleOptions)
   }
 
   const sagaMiddleware = createSagaMiddleware()
-  const allMiddlewares = [...appMiddlewares, sagaMiddleware, drizzleMW]
+  const allMiddlewares = [...appMiddlewares, drizzleMW, sagaMiddleware]
   const allReducers = { ...drizzleReducers, ...appReducers }
 
+  // const store = configureStore({
+  //   reducer: combineReducers(allReducers),
+  //   middleware: (getDefaultMiddleware) => [
+  //     ...getDefaultMiddleware({ thunk: false }),
+  //     ...appMiddlewares,
+  //     drizzleMiddleware,
+  //     sagaMiddleware
+  //   ],
+  //   preloadedState: initialContractsState,
+  //   devTools: !disableReduxDevTools
+  // });
   const store = createStore(
     combineReducers(allReducers),
     initialContractsState,
     composeEnhancers(applyMiddleware(...allMiddlewares))
   )
-
-  sagaMiddleware.run(composeSagas([...drizzleSagas, ...appSagas]))
+  const rootSaga = composeSagas([...drizzleSagas, ...appSagas])
+  sagaMiddleware.run(rootSaga)
   return store
 }

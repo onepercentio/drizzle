@@ -11,6 +11,13 @@ const accountsReducer = (state = initialState, action) => {
     return Object.assign({}, state, action.accounts)
   }
 
+  if (action.type === AccountsActions.ACCOUNTS_POLLING) {
+    return {
+      ...state,
+      accounts: action.accounts
+    }
+  }
+
   return state
 }
 

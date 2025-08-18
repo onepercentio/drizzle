@@ -6,7 +6,7 @@ import * as ContractActions from './contracts/constants'
 import * as DrizzleActions from './drizzleStatus/constants'
 
 // Load as promise so that async Drizzle initialization can still resolve
-var isEnvReadyPromise = new Promise((resolve, reject) => {
+const isEnvReadyPromise = new Promise((resolve, reject) => {
   const hasNavigator = typeof navigator !== 'undefined'
   const hasWindow = typeof window !== 'undefined'
   const hasDocument = typeof document !== 'undefined'
@@ -20,7 +20,7 @@ var isEnvReadyPromise = new Promise((resolve, reject) => {
   }
 
   // resolve in any case if we missed the load event and the document is already loaded
-  if (hasDocument && document.readyState === `complete`) {
+  if (hasDocument && document.readyState === 'complete') {
     return resolve()
   }
 })
