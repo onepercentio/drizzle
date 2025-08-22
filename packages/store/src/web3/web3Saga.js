@@ -1,7 +1,6 @@
-import { call, put, takeLatest } from 'redux-saga/effects'
+import { call, put } from 'redux-saga/effects'
 import * as Action from './constants'
 import * as AccountsActions from '../accounts/constants'
-import { getCurrentAccount } from '../accounts/accountsSaga'
 
 import { Web3 } from 'web3'
 
@@ -9,24 +8,26 @@ import { Web3 } from 'web3'
  * Initialization
  */
 
-export function* initializeWeb3 (options) {
+export function * initializeWeb3 (options) {
   try {
-    let web3 = {}
+    let web3 = null
 
     if (options.customProvider) {
-      yield put({ type: Action.WEB3_INITIALIZED })
-      return options.customProvider
+      yield put({ type: Action.CUSTOM_PROVIDER_SET, customProvider: options.customProvider })
+      web3 = new Web3()
+      web3.setProvider(options.customProvider)
+      yield put({ type: Action.WEB3_INITIALIZED, web3 })
     }
 
     if (typeof window.ethereum !== 'undefined') {
       const { ethereum } = window
-      web3 = new Web3(ethereum)
-      try {
-        // ethereum.enable() will return the selected account
-        // unless user opts out and then it will return undefined
-        const accounts = yield call(ethereum.request, { method: 'eth_requestAccounts' })
-
+      if (!web3) {
+        web3 = new Web3()
+        web3.setProvider(ethereum)
         yield put({ type: Action.WEB3_INITIALIZED, web3 })
+      }
+      try {
+        const accounts = yield call(ethereum.request, { method: 'eth_requestAccounts' })
         yield put({ type: AccountsActions.ACCOUNTS_FETCHED, accounts })
 
         if (!accounts || !accounts.length) {
@@ -37,19 +38,18 @@ export function* initializeWeb3 (options) {
       } catch (error) {
         console.error(error)
         yield put({ type: Action.WEB3_FAILED, error })
-        return
       }
-    }  else if (options.fallback) {
+    } else if (options.fallback) {
       // Attempt fallback if no web3 injection.
       switch (options.fallback.type) {
         case 'ws':
-          var provider = new Web3.providers.WebsocketProvider(
+          const provider = new Web3.providers.WebsocketProvider(
             options.fallback.url
           )
-          web3 = new Web3(provider)
-          yield put({ type: Action.WEB3_INITIALIZED })
+          web3 = new Web3()
+          web3.setProvider(provider)
+          yield put({ type: Action.WEB3_INITIALIZED, web3 })
           return web3
-
         default:
           // Invalid options; throw.
           throw new Error('Invalid web3 fallback provided.')
@@ -67,7 +67,7 @@ export function* initializeWeb3 (options) {
 /*
  * Network ID
  */
-export function* getNetworkId ({ web3 }) {
+export function * getNetworkId ({ web3 }) {
   try {
     if (!web3 || !web3.eth) {
       throw new Error('web3.eth is not available')

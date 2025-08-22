@@ -1,4 +1,4 @@
-import { call, put, select, takeLatest, take } from 'redux-saga/effects'
+import { call, put, takeLatest } from 'redux-saga/effects'
 
 // Initialization Functions
 import { initializeWeb3, getNetworkId } from '../web3/web3Saga'
@@ -7,7 +7,7 @@ import * as DrizzleActions from './constants'
 import * as BlocksActions from '../blocks/constants'
 import { getAccounts } from '../accounts/accountsSaga'
 
-export function* initializeDrizzle (action) {
+export function * initializeDrizzle (action) {
   const { drizzle, options } = action
   try {
     // Initialize web3 and get the current network ID.
@@ -25,10 +25,10 @@ export function* initializeDrizzle (action) {
       yield call(getAccountBalances, { web3, accounts })
 
       // Instantiate contracts passed through via options.
-      for (var i = 0; i < options.contracts.length; i++) {
-        var contractConfig = options.contracts[i]
-        var events = []
-        var contractName = contractConfig.contractName
+      for (let i = 0; i < options.contracts.length; i++) {
+        const contractConfig = options.contracts[i]
+        let events = []
+        const contractName = contractConfig.contractName
 
         if (contractName in options.events) {
           events = options.events[contractName]
@@ -50,15 +50,6 @@ export function* initializeDrizzle (action) {
         // Not using old MetaMask, attempt subscription block listening.
         yield put({ type: BlocksActions.BLOCKS_LISTENING, drizzle, web3, syncAlways })
       }
-
-      // Accounts Polling
-      // if ('accounts' in options.polls) {
-      //   yield put({
-      //     type: AccountsActions.ACCOUNTS_POLLING,
-      //     interval: options.polls.accounts,
-      //     web3
-      //   })
-      // }
     }
   } catch (error) {
     yield put({ type: DrizzleActions.DRIZZLE_FAILED, error })
@@ -71,7 +62,7 @@ export function* initializeDrizzle (action) {
   yield put({ type: DrizzleActions.DRIZZLE_INITIALIZED, drizzle })
 }
 
-function *drizzleStatusSaga () {
+function * drizzleStatusSaga () {
   yield takeLatest(DrizzleActions.DRIZZLE_INITIALIZING, initializeDrizzle)
 }
 

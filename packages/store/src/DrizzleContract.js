@@ -33,7 +33,7 @@ class DrizzleContract {
     }
 
     // Register event listeners if any events.
-    if (events.length > 0 && false) {
+    if (events.length > 0) {
       for (let i = 0; i < events.length; i++) {
         const event = events[i]
 
@@ -135,9 +135,9 @@ class DrizzleContract {
 
         // Stringify objects to allow hashing
         if (typeof argToHash === 'object') {
-          const json = JSON.stringify(data, (key, value) =>
+          const json = JSON.stringify(argToHash, (key, value) =>
             typeof value === 'bigint' ? value.toString() : value
-          );
+          )
           argToHash = JSON.stringify(json)
         }
 
@@ -147,7 +147,7 @@ class DrizzleContract {
         }
 
         // This check is in place for web3 v0.x
-        let hashPiece = web3.utils.sha3(argToHash)
+        const hashPiece = web3.utils.sha3(argToHash)
 
         hashString += hashPiece
       }

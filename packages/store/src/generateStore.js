@@ -4,8 +4,7 @@ import createSagaMiddleware from 'redux-saga'
 import drizzleSagas from './rootSaga'
 import drizzleReducers from './reducer'
 import { generateContractsInitialState } from './contractStateUtils'
-import drizzleMW, { drizzleMiddleware } from './drizzle-middleware'
-import { configureStore } from '@reduxjs/toolkit'
+import drizzleMW from './drizzle-middleware'
 
 const composeSagas = sagas =>
   function * () {
@@ -30,22 +29,8 @@ export function generateStore ({
   appReducers = {},
   appSagas = [],
   appMiddlewares = [],
-  disableReduxDevTools = false,
+  disableReduxDevTools = false
 }) {
-  // Note: Preserve backwards compatibility for passing options to
-  // `generateStore`.  in drizzle v1.3.3 and prior of generate had a signature
-  // of `generateStore(options)`.
-  //
-  // The updated signature looks for `drizzleOptions`, `appReducers`,
-  // `appSagas`, `initialAppStore` and `disableReduxDevTools` while
-  // {...options} captures the previous release's signature.
-  //
-  // Resolve drizzleOptions. If called by dapps written to previous API, then
-  // drizzleOptions will be `undefined` and will resolve to rest constructed
-  // options.
-  //
-  drizzleOptions = drizzleOptions || options
-
   const composeEnhancers = !disableReduxDevTools
     ? global.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose
     : compose
@@ -58,17 +43,6 @@ export function generateStore ({
   const allMiddlewares = [...appMiddlewares, drizzleMW, sagaMiddleware]
   const allReducers = { ...drizzleReducers, ...appReducers }
 
-  // const store = configureStore({
-  //   reducer: combineReducers(allReducers),
-  //   middleware: (getDefaultMiddleware) => [
-  //     ...getDefaultMiddleware({ thunk: false }),
-  //     ...appMiddlewares,
-  //     drizzleMiddleware,
-  //     sagaMiddleware
-  //   ],
-  //   preloadedState: initialContractsState,
-  //   devTools: !disableReduxDevTools
-  // });
   const store = createStore(
     combineReducers(allReducers),
     initialContractsState,

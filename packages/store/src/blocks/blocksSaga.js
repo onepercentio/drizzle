@@ -9,7 +9,7 @@ import * as ContractActions from '../contracts/constants'
  */
 
 export function createBlockChannel ({ drizzle, web3, syncAlways }) {
-  let unsubscribe = () => {}
+  const unsubscribe = () => {}
   return eventChannel(emit => {
     if (
       web3.currentProvider &&
@@ -39,10 +39,10 @@ export function createBlockChannel ({ drizzle, web3, syncAlways }) {
 
       return unsubscribe
     } else {
-      emit({ type: BlocksActions.BLOCKS_FAILED, error: new Error('Web3 provider does not support subscriptions') });
-      emit(END);
+      emit({ type: BlocksActions.BLOCKS_FAILED, error: new Error('Web3 provider does not support subscriptions') })
+      emit(END)
     }
-    return unsubscribe;
+    return unsubscribe
   })
 }
 

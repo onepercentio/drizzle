@@ -7,7 +7,8 @@ module.exports = {
       "anonymous": "ignore",
       "asyncArrow": "always",
       "named": "ignore"
-    }]
+    }],
+    "no-case-declarations": "off"
   },
   "env" : {
       "jest/globals": true

@@ -1,4 +1,4 @@
-import { END, eventChannel } from 'redux-saga'
+import { eventChannel } from 'redux-saga'
 import { call, put, take, takeLatest } from 'redux-saga/effects'
 import { getAccountBalances } from '../accountBalances/accountBalancesSaga'
 import * as AccountsActions from './constants'
@@ -6,10 +6,10 @@ import * as AccountsActions from './constants'
 /*
   * Get current account
 */
-export function * getCurrentAccount( ) {
+export function * getCurrentAccount() {
   return window.ethereum.request({
-    "method": "eth_requestAccounts",
-    "params": [],
+    method: 'eth_requestAccounts',
+    params: []
   })
 }
 
@@ -18,13 +18,12 @@ export function * getCurrentAccount( ) {
  */
 
 export function * getAccounts (action) {
-  const web3 = action.web3
-
   try {
-    const accounts = yield call([web3.eth, 'getAccounts'])
+    if (!window.ethereum) return []
+    const accounts = yield call([window.ethereum, 'request'], { method: 'eth_requestAccounts' })
 
     if (!accounts) {
-      throw 'No accounts found!'
+      throw new Error('No accounts found!')
     }
 
     yield put({ type: AccountsActions.ACCOUNTS_FETCHED, accounts })
@@ -64,7 +63,7 @@ function * callCreateAccountsPollChannel ({ interval, web3, accounts }) {
 
   try {
     while (true) {
-      let event = yield take(accountsChannel)
+      const event = yield take(accountsChannel)
 
       if (event.type === AccountsActions.SYNCING_ACCOUNTS) {
         yield call(getAccounts, { web3: event.persistedWeb3 })
@@ -78,7 +77,7 @@ function * callCreateAccountsPollChannel ({ interval, web3, accounts }) {
   }
 }
 
-function *accountsSaga () {
+function * accountsSaga () {
   yield takeLatest(AccountsActions.ACCOUNTS_FETCHING, getAccounts)
   yield takeLatest(AccountsActions.ACCOUNTS_POLLING, callCreateAccountsPollChannel)
 }
