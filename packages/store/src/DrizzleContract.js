@@ -16,12 +16,14 @@ class DrizzleContract {
     this.contractName = name
     this.contractArtifact = contractArtifact
     this.store = store
+    this.methods = web3Contract._methods
+    this.events = web3Contract._events
 
     // Merge web3 contract instance into DrizzleContract instance.
     Object.assign(this, web3Contract)
 
-    for (var i = 0; i < this.abi.length; i++) {
-      var item = this.abi[i]
+    for (let i = 0; i < this.abi.length; i++) {
+      const item = this.abi[i]
       if (isGetterFunction(item)) {
         this.methods[item.name].cacheCall = this.cacheCallFunction(item.name, i)
       }
@@ -32,7 +34,7 @@ class DrizzleContract {
 
     // Register event listeners if any events.
     if (events.length > 0) {
-      for (i = 0; i < events.length; i++) {
+      for (let i = 0; i < events.length; i++) {
         const event = events[i]
 
         if (typeof event === 'object') {
@@ -54,12 +56,12 @@ class DrizzleContract {
   }
 
   cacheCallFunction (fnName, fnIndex, fn) {
-    var contract = this
+    const contract = this
 
     return function () {
       // Collect args and hash to use as key, 0x0 if no args
-      var argsHash = '0x0'
-      var args = arguments
+      let argsHash = '0x0'
+      const args = arguments
 
       if (args.length > 0) {
         argsHash = contract.generateArgsHash(args)
@@ -93,10 +95,10 @@ class DrizzleContract {
 
   cacheSendFunction (fnName, fnIndex, fn) {
     // NOTE: May not need fn index
-    var contract = this
+    const contract = this
 
     return function () {
-      var args = arguments
+      const args = arguments
 
       // Generate temporary ID
       const transactionStack = contract.store.getState().transactionStack
@@ -124,16 +126,19 @@ class DrizzleContract {
   }
 
   generateArgsHash (args) {
-    var web3 = this.web3
-    var hashString = ''
+    const web3 = this.web3
+    let hashString = ''
 
-    for (var i = 0; i < args.length; i++) {
+    for (let i = 0; i < args.length; i++) {
       if (typeof args[i] !== 'function') {
-        var argToHash = args[i]
+        let argToHash = args[i]
 
         // Stringify objects to allow hashing
         if (typeof argToHash === 'object') {
-          argToHash = JSON.stringify(argToHash)
+          const json = JSON.stringify(argToHash, (key, value) =>
+            typeof value === 'bigint' ? value.toString() : value
+          )
+          argToHash = JSON.stringify(json)
         }
 
         // Convert number to strong to allow hashing
@@ -142,11 +147,7 @@ class DrizzleContract {
         }
 
         // This check is in place for web3 v0.x
-        if ('utils' in web3) {
-          var hashPiece = web3.utils.sha3(argToHash)
-        } else {
-          var hashPiece = web3.sha3(argToHash)
-        }
+        const hashPiece = web3.utils.sha3(argToHash)
 
         hashString += hashPiece
       }

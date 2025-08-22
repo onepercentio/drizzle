@@ -9,30 +9,39 @@ import * as ContractActions from '../contracts/constants'
  */
 
 export function createBlockChannel ({ drizzle, web3, syncAlways }) {
+  const unsubscribe = () => {}
   return eventChannel(emit => {
-    const blockEvents = web3.eth
-      .subscribe('newBlockHeaders', (error, result) => {
-        if (error) {
+    if (
+      web3.currentProvider &&
+      web3.currentProvider.constructor &&
+      web3.currentProvider.constructor.name === 'WebsocketProvider'
+    ) {
+      const blockEvents = web3.eth
+        .subscribe('newBlockHeaders', (error, result) => {
+          if (error) {
+            emit({ type: BlocksActions.BLOCKS_FAILED, error })
+
+            console.error('Error in block header subscription:')
+            console.error(error)
+
+            emit(END)
+          }
+        }).on('data', blockHeader => {
+          emit({ type: BlocksActions.BLOCK_RECEIVED, blockHeader, drizzle, web3, syncAlways })
+        }).on('error', error => {
           emit({ type: BlocksActions.BLOCKS_FAILED, error })
-
-          console.error('Error in block header subscription:')
-          console.error(error)
-
           emit(END)
-        }
-      })
-      .on('data', blockHeader => {
-        emit({ type: BlocksActions.BLOCK_RECEIVED, blockHeader, drizzle, web3, syncAlways })
-      })
-      .on('error', error => {
-        emit({ type: BlocksActions.BLOCKS_FAILED, error })
-        emit(END)
-      })
+        })
 
-    const unsubscribe = () => {
-      blockEvents.off()
+      const unsubscribe = () => {
+        blockEvents.off()
+      }
+
+      return unsubscribe
+    } else {
+      emit({ type: BlocksActions.BLOCKS_FAILED, error: new Error('Web3 provider does not support subscriptions') })
+      emit(END)
     }
-
     return unsubscribe
   })
 }
@@ -43,10 +52,13 @@ function * callCreateBlockChannel ({ drizzle, web3, syncAlways }) {
     web3,
     syncAlways
   })
+  if (!blockChannel) {
+    return
+  }
 
   try {
     while (true) {
-      var event = yield take(blockChannel)
+      const event = yield take(blockChannel)
       yield put(event)
     }
   } finally {
@@ -106,7 +118,7 @@ function * callCreateBlockPollChannel ({
 
   try {
     while (true) {
-      var event = yield take(blockChannel)
+      const event = yield take(blockChannel)
       yield put(event)
     }
   } finally {
@@ -156,15 +168,15 @@ function * processBlock ({ block, drizzle, web3, syncAlways }) {
 
     if (txs.length > 0) {
       // Loop through txs looking for any contract address of interest
-      for (var i = 0; i < txs.length; i++) {
-        var from = txs[i].from || ''
-        var fromContract = drizzle.findContractByAddress(from.toLowerCase())
+      for (let i = 0; i < txs.length; i++) {
+        const from = txs[i].from || ''
+        const fromContract = drizzle.findContractByAddress(from.toLowerCase())
         if (fromContract) {
           yield put({ type: ContractActions.CONTRACT_SYNCING, contract: fromContract })
         }
 
-        var to = txs[i].to || ''
-        var toContract = drizzle.findContractByAddress(to.toLowerCase())
+        const to = txs[i].to || ''
+        const toContract = drizzle.findContractByAddress(to.toLowerCase())
         if (toContract) {
           yield put({ type: ContractActions.CONTRACT_SYNCING, contract: toContract })
         }

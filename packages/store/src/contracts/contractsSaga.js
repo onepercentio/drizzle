@@ -10,26 +10,28 @@ import * as TransactionsActions from '../transactions/constants'
 export function createContractEventChannel ({
   contract,
   eventName,
-  eventOptions
+  customOptions = {}
 }) {
   const name = contract.contractName
-
   return eventChannel(emit => {
-    const eventListener = contract.events[eventName](eventOptions)
-      .on('data', event => {
-        emit({ type: ContractActions.EVENT_FIRED, name, event })
-      })
-      .on('changed', event => {
-        emit({ type: ContractActions.EVENT_CHANGED, name, event })
-      })
-      .on('error', error => {
-        emit({ type: ContractActions.EVENT_ERROR, name, error })
-        emit(END)
-      })
-
-    const unsubscribe = () => {
-      eventListener.removeListener(eventName)
+    const options = {
+      fromBlock: 0,
+      ...customOptions
     }
+    const eventListener = contract.events[eventName](options)
+    eventListener.on('data', event => {
+      emit({ type: ContractActions.EVENT_FIRED, name, event })
+    })
+    eventListener.on('changed', event => {
+      emit({ type: ContractActions.EVENT_CHANGED, name, event })
+    })
+    eventListener.on('error', error => {
+      console.error(error)
+      emit({ type: ContractActions.EVENT_ERROR, name, error })
+      emit(END)
+    })
+
+    const unsubscribe = () => eventListener.unsubscribe
 
     return unsubscribe
   })
@@ -43,7 +45,7 @@ function * callListenForContractEvent ({ contract, eventName, eventOptions }) {
   })
 
   while (true) {
-    var event = yield take(contractEventChannel)
+    const event = yield take(contractEventChannel)
     yield put(event)
   }
 }
@@ -59,7 +61,7 @@ function createTxChannel ({
   contractName,
   stackTempKey
 }) {
-  var persistTxHash
+  let persistTxHash
 
   return eventChannel(emit => {
     const txPromiEvent = txObject
@@ -78,14 +80,14 @@ function createTxChannel ({
         })
       })
       .on('receipt', receipt => {
-        emit({ type: TransactionsActions.TX_SUCCESSFUL, receipt: receipt, txHash: persistTxHash })
+        emit({ type: TransactionsActions.TX_SUCCESSFUL, receipt, txHash: persistTxHash })
         emit(END)
       })
       .on('error', (error, receipt) => {
         console.error(error)
         console.error(receipt)
 
-        emit({ type: TransactionsActions.TX_ERROR, error: error, stackTempKey })
+        emit({ type: TransactionsActions.TX_ERROR, error, stackTempKey })
         emit(END)
       })
 
@@ -106,13 +108,13 @@ function * callSendContractTx ({
   stackTempKey
 }) {
   // Check for type of object and properties indicative of call/send options.
+  let sendArgs = {}
   if (args.length) {
     const finalArg = args.length > 1 ? args[args.length - 1] : args[0]
-    var sendArgs = {}
-    var finalArgTest = false
+    let finalArgTest = false
 
-    if (typeof finalArg === 'object') {
-      var finalArgTest = yield call(isSendOrCallOptions, finalArg)
+    if (typeof finalArg === 'object' && finalArg !== null && !Array.isArray(finalArg)) {
+      finalArgTest = yield call(isSendOrCallOptions, finalArg)
     }
 
     if (finalArgTest) {
@@ -138,7 +140,7 @@ function * callSendContractTx ({
 
   try {
     while (true) {
-      var event = yield take(txChannel)
+      const event = yield take(txChannel)
       yield put(event)
     }
   } finally {
@@ -164,13 +166,13 @@ function * callCallContractFn ({
   }
 
   // Check for type of object and properties indicative of call/send options.
+  let callArgs = {}
   if (args.length) {
     const finalArg = args.length > 1 ? args[args.length - 1] : args[0]
-    var callArgs = {}
-    var finalArgTest = false
+    let finalArgTest = false
 
-    if (typeof finalArg === 'object') {
-      var finalArgTest = yield call(isSendOrCallOptions, finalArg)
+    if (typeof finalArg === 'object' && finalArg !== null && !Array.isArray(finalArg)) {
+      finalArgTest = yield call(isSendOrCallOptions, finalArg)
     }
 
     if (finalArgTest) {
@@ -187,26 +189,26 @@ function * callCallContractFn ({
   try {
     const callResult = yield call(txObject.call, callArgs)
 
-    var dispatchArgs = {
+    const dispatchArgs = {
       name: contract.contractName,
       variable: contract.abi[fnIndex].name,
-      argsHash: argsHash,
-      args: args,
+      argsHash,
+      args,
       value: callResult,
-      fnIndex: fnIndex
+      fnIndex
     }
 
     yield put({ type: ContractActions.GOT_CONTRACT_VAR, ...dispatchArgs })
   } catch (error) {
     console.error(error)
 
-    var errorArgs = {
+    const errorArgs = {
       name: contract.contractName,
       variable: contract.abi[fnIndex].name,
-      argsHash: argsHash,
-      args: args,
-      error: error,
-      fnIndex: fnIndex
+      argsHash,
+      args,
+      error,
+      fnIndex
     }
 
     yield put({ type: ContractActions.ERROR_CONTRACT_VAR, ...errorArgs })
@@ -223,7 +225,7 @@ function * callSyncContract (action) {
   const contractName = contract.contractName
 
   const contractsState = yield select(getContractsState)
-  var contractFnsState = Object.assign({}, contractsState[contractName])
+  const contractFnsState = Object.assign({}, contractsState[contractName])
 
   // Remove unnecessary keys
   delete contractFnsState.initialized
@@ -231,8 +233,8 @@ function * callSyncContract (action) {
   delete contractFnsState.events
 
   // Iterate over functions and hashes
-  for (var fnName in contractFnsState) {
-    for (var argsHash in contractFnsState[fnName]) {
+  for (const fnName in contractFnsState) {
+    for (const argsHash in contractFnsState[fnName]) {
       const fnIndex = contractFnsState[fnName][argsHash].fnIndex
       const args = contractFnsState[fnName][argsHash].args
 
@@ -264,6 +266,7 @@ function * callSyncContract (action) {
 const getContractsState = state => state.contracts
 
 function isSendOrCallOptions (options) {
+  if (!options) return false
   if ('from' in options) return true
   if ('gas' in options) return true
   if ('gasPrice' in options) return true

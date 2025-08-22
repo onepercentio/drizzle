@@ -1,24 +1,23 @@
-import { call, put, select, takeLatest } from 'redux-saga/effects'
+import { call, put, takeLatest } from 'redux-saga/effects'
 import * as AccountBalancesActions from './constants'
 
 export function * getAccountBalances (action) {
-  const accounts = yield select(getAccountsState)
-  const web3 = action.web3
+  const accounts = action.accounts
 
   if (!accounts) {
     console.error('No accounts found while attempting to fetch balances!')
   }
 
   try {
-    for (var i in accounts) {
-      var account = accounts[i]
-      var accountBalance = yield call(web3.eth.getBalance, account)
+    for (const i in accounts) {
+      const account = accounts[i]
+      const accountBalance = yield call(window.ethereum.request, { method: 'eth_getBalance', params: [account, 'latest'] })
 
-      yield put({ type: AccountBalancesActions.ACCOUNT_BALANCE_FETCHED, account, accountBalance })
+      yield put({ type: AccountBalancesActions.ACCOUNT_BALANCE_FETCHED, account, accountBalance: parseInt(accountBalance, 16) })
     }
   } catch (error) {
     yield put({ type: AccountBalancesActions.ACCOUNT_BALANCE_FAILED, error })
-    console.error('Error fetching account ' + account + ' balance:')
+    console.error('Error fetching account balance:')
     console.error(error)
   }
 

@@ -8,7 +8,17 @@ const accountsReducer = (state = initialState, action) => {
   }
 
   if (action.type === AccountsActions.ACCOUNTS_FETCHED) {
-    return Object.assign({}, state, action.accounts)
+    return {
+      ...state,
+      accounts: action.accounts
+    }
+  }
+
+  if (action.type === AccountsActions.ACCOUNTS_POLLING) {
+    return {
+      ...state,
+      accounts: action.accounts
+    }
   }
 
   return state
